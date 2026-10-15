@@ -21,11 +21,12 @@
 
 ## 二、电脑端：自动安装与测试
 
-把本项目克隆到一个**长期保留**的目录。以下路径只是示例，按你的电脑情况替换：
+先确认仓库 `main` 分支已包含 `Install.ps1`；如果正在查看尚未合并的 Draft PR，请切换到该 PR 的功能分支。把本项目克隆到一个**长期保留**的目录：
 
 ```powershell
-git clone https://github.com/orge-e/codex-harmony-notify.git C:\Tools\codex-harmony-notify
-Set-Location 'C:\Tools\codex-harmony-notify'
+$installDir = Join-Path $env:USERPROFILE 'codex-harmony-notify'
+git clone https://github.com/orge-e/codex-harmony-notify.git $installDir
+Set-Location $installDir
 ```
 
 先查看脚本，再在 Windows PowerShell 中启动安装器：
@@ -41,7 +42,7 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Install.ps1
 | 安全联动（输入 `1` 或直接回车） | 你指定的一个 Git 项目 | 授权码、通用任务标题、完成状态和随机消息 ID；不发送回答摘要或 Codex 回合标识 | 该项目的 `.codex/hooks.json` |
 | 傻瓜式联动（输入 `2`） | 同一 `CODEX_HOME` 下所有本机 Codex 对话 | 授权码、完成状态、最多 120 字摘要和 Codex 回合标识 | 用户级 `hooks.json` |
 
-安全联动需要你输入目标 Git 项目的路径，并在该项目中运行 Codex；项目配置及 Hook 都需要你本人审阅和信任。如果 Agent 已知道目标路径，可用 `-ProjectPath 'C:\Work\my-project'` 预填路径，但安装器仍会让你选择模式、确认数据发送及手机收件。**不要把生成的项目 `.codex/hooks.json` 提交到 GitHub**，其中包含你电脑上的脚本绝对路径。若已安装本项目的全局 Hook，安全模式会拒绝继续，提示你先卸载全局 Hook，以免其他对话仍然推送。切换模式前请先用下文对应命令卸载原模式，避免重复通知。
+安全联动需要你输入目标 Git 项目的路径，并在该项目中运行 Codex；项目配置及 Hook 都需要你本人审阅和信任。如果 Agent 已知道目标路径，可用 `-ProjectPath 'C:\Work\my-project'` 预填路径，但安装器仍会让你选择模式、确认数据发送及手机收件。**不要把生成的项目 `.codex/hooks.json` 提交到 GitHub**，其中包含你电脑上的脚本绝对路径；安装器会拒绝修改已被 Git 跟踪的同名文件。若已安装本项目的全局 Hook，安全模式也会拒绝继续，提示你先卸载全局 Hook，以免其他对话仍然推送。切换模式前请先用下文对应命令卸载原模式，避免重复通知。
 
 选择模式后，安装器会按顺序完成以下操作：
 

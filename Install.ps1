@@ -33,6 +33,12 @@ switch ($choice) {
         }
         if ([string]::IsNullOrWhiteSpace($projectInput)) { throw '尚未指定目标项目，未修改任何配置。' }
         $configHome = Get-CodexProjectConfigPath -ProjectPath $projectInput
+        $projectRoot = Split-Path -Parent $configHome
+        $trackedHook = & git -C $projectRoot ls-files -- .codex/hooks.json
+        if ($LASTEXITCODE -ne 0) { throw '无法检查目标项目的已跟踪文件；未修改配置。' }
+        if (-not [string]::IsNullOrWhiteSpace([string]$trackedHook)) {
+            throw '目标项目已把 .codex/hooks.json 纳入版本控制。为避免把本机命令提交到仓库，请先改用未跟踪的项目或手动处理该文件。'
+        }
         if (Test-HarmonyHookPresent -CodexHome $codexHome) {
             throw '检测到本项目的全局 Hook。请先运行 Uninstall.ps1 移除全局 Hook，再选择安全联动，以免其他对话仍向手机推送。'
         }
