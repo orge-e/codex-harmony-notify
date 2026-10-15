@@ -1,0 +1,8 @@
+# 本机凭据、状态、配置备份和隔离测试目录不应进入仓库。
+auth.dpapi
+last-status.json
+paused.flag
+.codex/hooks.json
+*.backup-*
+.codex-harmony-test-*/
+*.tmp

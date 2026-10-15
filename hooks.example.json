@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy RemoteSigned -NonInteractive -File \"C:\\Tools\\codex-harmony-notify\\Codex-Stop-Hook.ps1\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
