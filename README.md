@@ -4,55 +4,42 @@
 
 > 当前支持范围：Windows PowerShell 5.1 与本机 Codex CLI。已在一台电脑上完成真实 Codex CLI → 手机收件验证；公开安装器的配置合并、重复安装和卸载已在隔离目录测试。Codex 桌面端、云端任务和其他电脑尚未独立验收。
 
-## 开始前
+## 快速安装
 
-- 手机应运行 HarmonyOS 6.0.0.328 或更新版本，“智慧助手·今天”（负一屏）应为 15.0.22.300 或更新版本。HarmonyOS 7 用户仍需检查负一屏版本。
-- 电脑应已安装并能使用 Codex CLI、Git 和 Windows PowerShell 5.1，并能访问华为负一屏服务。
-- 请先阅读[华为官方关联说明](https://consumer.huawei.com/cn/support/content/zh-cn16093160/)与[Codex 官方 Hooks 文档](https://learn.chatgpt.com/docs/hooks)。
-- 授权码仅在你自己的电脑终端输入。不要把它发送给 Agent、粘贴到聊天、命令参数或 GitHub。
-
-## 一、手机端：生成关联授权码
-
-1. 打开负一屏，依次进入 **左上角头像 → 右上角四个点 → 动态管理 → 关联账号 → Claw 智能体**。
-2. 开启关联并确认。手机会生成授权码；暂时保留页面，稍后在电脑安装器的遮蔽输入框中输入。
-3. 安装器发送测试消息后，回到负一屏确认出现“Codex 鸿蒙通知测试”卡片，再回答安装器的收件确认问题。
-
-同一华为账号的其他手机可同步关联状态。如需撤销，在上述入口选择“停止关联”，旧授权码会失效。
-
-## 二、电脑端：自动安装与测试
-
-先确认仓库 `main` 分支已包含 `Install.ps1`；如果正在查看尚未合并的 Draft PR，请切换到该 PR 的功能分支。把本项目克隆到一个**长期保留**的目录：
+1. 在手机负一屏进入 **左上角头像 → 右上角四个点 → 动态管理 → 关联账号 → Claw 智能体**，开启关联，保留手机显示的授权码。手机和负一屏版本要求见[华为官方说明](https://consumer.huawei.com/cn/support/content/zh-cn16093160/)。
+2. 在电脑的 Windows PowerShell 中运行下列命令。需要已安装 Codex CLI 和 Git；安装目录请长期保留。
 
 ```powershell
 $installDir = Join-Path $env:USERPROFILE 'codex-harmony-notify'
 git clone https://github.com/orge-e/codex-harmony-notify.git $installDir
 Set-Location $installDir
-```
-
-先查看脚本，再在 Windows PowerShell 中启动安装器：
-
-```powershell
 powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Install.ps1
 ```
 
-安装器会先让你选择一种模式，**默认安全联动**：
+3. 选择模式，在遮蔽输入框中亲自输入手机授权码。安装器会自动测试华为服务并配置 Codex Hook；无需再次确认测试消息或重复输入授权码。
+4. 手机确认收到测试卡片。然后重新启动 **Codex CLI**，输入 `/hooks`，审阅并信任 `Codex-Stop-Hook.ps1`。让 Codex 回答一条简单问题，再检查手机是否收到自动通知。安全模式还需先信任目标项目的 `.codex` 配置。
+
+> 不要把授权码发给 Agent，或写进聊天、命令行参数和 GitHub。安装器无法代替你确认手机收件，也不能绕过 Codex 的 Hook 信任步骤。[官方 Hooks 文档](https://learn.chatgpt.com/docs/hooks)说明了这一机制。
+
+## 两种模式
+
+安装时选择一种，**默认安全联动**：
 
 | 模式 | 通知范围 | 发送内容 | 配置位置 |
 | --- | --- | --- | --- |
 | 安全联动（输入 `1` 或直接回车） | 你指定的一个 Git 项目 | 授权码、通用任务标题、完成状态和随机消息 ID；不发送回答摘要或 Codex 回合标识 | 该项目的 `.codex/hooks.json` |
 | 傻瓜式联动（输入 `2`） | 同一 `CODEX_HOME` 下所有本机 Codex 对话 | 授权码、完成状态、最多 120 字摘要和 Codex 回合标识 | 用户级 `hooks.json` |
 
-安全联动需要你输入目标 Git 项目的路径，并在该项目中运行 Codex；项目配置及 Hook 都需要你本人审阅和信任。如果 Agent 已知道目标路径，可用 `-ProjectPath 'C:\Work\my-project'` 预填路径，但安装器仍会让你选择模式、确认数据发送及手机收件。**不要把生成的项目 `.codex/hooks.json` 提交到 GitHub**，其中包含你电脑上的脚本绝对路径；安装器会拒绝修改已被 Git 跟踪的同名文件。若已安装本项目的全局 Hook，安全模式也会拒绝继续，提示你先卸载全局 Hook，以免其他对话仍然推送。切换模式前请先用下文对应命令卸载原模式，避免重复通知。
+安全联动需要输入一个 Git 项目路径，并在该项目中运行 Codex。可用 `-ProjectPath 'C:\Work\my-project'` 预填路径。**不要把生成的项目 `.codex/hooks.json` 提交到 GitHub**，其中包含本机脚本的绝对路径。安装器会拒绝修改已被 Git 跟踪的同名文件。切换模式前先按下文卸载原模式，避免重复通知。
 
 选择模式后，安装器会按顺序完成以下操作：
 
-1. 检查 Windows、PowerShell 和 Codex CLI，并显示 Codex 配置目录、发送目标和数据范围。
-2. 等你确认后，在本机预览测试消息；然后由你本人在**遮蔽输入框**输入手机授权码。输入不会显示在终端，也不会进入命令历史。
-3. 用当前 Windows 用户的 DPAPI 加密保存授权码，向华为服务发送一条测试通知。
-4. 等你确认手机收到卡片。未确认时**不修改 Codex Hook**。
-5. 在所选范围内备份并合并 `hooks.json`，保留已有 Hook；重复运行不会增加第二个本项目 Hook。JSON 保存为 UTF-8 无 BOM。
+1. 检查系统、Codex CLI、项目范围及已有 Hook 配置；配置无效时提前停止。
+2. 显示发送目标和数据范围；你在**遮蔽输入框**输入授权码，即授权发送固定测试消息。授权码不会出现在终端或命令历史。
+3. 用当前 Windows 用户的 DPAPI 加密保存授权码，向华为服务发送测试通知。测试失败时恢复原有加密文件；首次安装则删除本次新建的文件。
+4. 服务接受请求后，备份并合并 `hooks.json`，保留其他 Hook。重复运行不会添加第二个本项目 Hook。JSON 保存为 UTF-8 无 BOM。
 
-安装器不会自动信任 Hook。它结束后，**重新启动 Codex CLI**；安全联动应从指定 Git 项目中启动 Codex，先信任该项目配置。然后输入 `/hooks`，检查命令确实指向本项目的 `Codex-Stop-Hook.ps1`，再由你本人信任并启用。随后给 Codex 一条不含私人内容的简单任务，在手机端确认自动通知。每次 Codex 模型回答仍按你原有的 Codex 订阅或使用方式计入用量；通知脚本本身不调用模型。
+安装器不能确认手机实际收件。若手机没有测试卡片，先不要信任 Hook，检查关联和网络。确认收件后按快速安装的第 4 步操作。每次 Codex 模型回答仍按原有订阅或使用方式计入用量；通知脚本本身不调用模型。
 
 傻瓜式联动中，如已设置 `CODEX_HOME`，安装器使用该目录；否则使用 `%USERPROFILE%\.codex`。若配置文件已存在，安装器会在同一目录留下带时间戳的备份。遇到无效 JSON 时安装器会停止，不覆盖现有文件。重装测试失败时，已有的加密授权码文件会恢复。
 
@@ -60,7 +47,7 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Install.ps1
 
 可以把以下要求交给本机 Agent。**到授权码输入和 Hook 信任步骤时，必须由你本人操作。**
 
-> 请先审阅这个仓库的 README 和 PowerShell 脚本，确认来源与执行内容。检查我的 Windows、Codex CLI 和 `CODEX_HOME`，然后把仓库克隆到一个固定目录，启动 `Install.ps1`。先让我选择安全联动或傻瓜式联动；如选择安全联动，让我指定一个 Git 项目。安装器要求输入手机授权码时暂停，让我本人在本机终端遮蔽输入；要求确认手机收到测试卡片时再暂停。保留已有 Hooks，不读取、记录或转述授权码。安装后指导我在 Codex `/hooks` 中检查并信任新 Hook，最后用不含私人信息的任务验证自动通知。
+> 请审阅本仓库的脚本，把它克隆到长期保留的目录并运行 `Install.ps1`。让我选择安全或傻瓜式联动；需要授权码时暂停，让我亲自在本机终端输入。保留已有 Hook，不读取或转述授权码。安装后提醒我核对手机测试卡片，并在 Codex `/hooks` 中审阅和信任新 Hook，最后完成一次自动通知测试。
 
 ## 三、查看状态、暂停和卸载
 

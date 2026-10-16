@@ -82,6 +82,44 @@ function Read-CodexHooksConfig {
     return $config
 }
 
+function Assert-HarmonyHookConfig {
+    param([Parameter(Mandatory = $true)][string]$CodexHome)
+
+    # 输入授权码前先检查现有配置，避免测试成功后才发现无法安装 Hook。
+    $configPath = Join-Path ([System.IO.Path]::GetFullPath($CodexHome)) 'hooks.json'
+    $config = Read-CodexHooksConfig -Path $configPath
+    if ($null -eq $config.hooks.PSObject.Properties['Stop']) { return }
+    if ($config.hooks.Stop -isnot [array]) {
+        throw '现有 Stop Hook 必须是数组；未修改 hooks.json。'
+    }
+    foreach ($group in @($config.hooks.Stop)) {
+        if ($group -isnot [pscustomobject] -or $null -eq $group.PSObject.Properties['hooks'] -or $group.hooks -isnot [array]) {
+            throw '现有 Stop Hook 格式异常；未修改 hooks.json。'
+        }
+        foreach ($handler in $group.hooks) {
+            if ($handler -isnot [pscustomobject]) {
+                throw '现有 Stop Hook 处理器格式异常；未修改 hooks.json。'
+            }
+        }
+    }
+}
+
+function Restore-HarmonyAuthFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [AllowNull()][byte[]]$PreviousBytes
+    )
+
+    # 首次安装失败时删掉新授权码；重装失败时恢复先前的加密文件。
+    if ($null -eq $PreviousBytes) {
+        if (Test-Path -LiteralPath $Path -PathType Leaf) {
+            Remove-Item -LiteralPath $Path -Force
+        }
+    } else {
+        [System.IO.File]::WriteAllBytes($Path, $PreviousBytes)
+    }
+}
+
 function Test-HarmonyHookPresent {
     param([Parameter(Mandatory = $true)][string]$CodexHome)
 
@@ -135,6 +173,7 @@ function Set-HarmonyCodexHook {
         [switch]$StatusOnly
     )
 
+    Assert-HarmonyHookConfig -CodexHome $CodexHome
     $command = Get-HarmonyHookCommand -ScriptPath $ScriptPath -StatusOnly:$StatusOnly
     $configPath = Join-Path ([System.IO.Path]::GetFullPath($CodexHome)) 'hooks.json'
     $config = Read-CodexHooksConfig -Path $configPath
@@ -190,6 +229,7 @@ function Remove-HarmonyCodexHook {
     if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
         return [pscustomobject]@{ Path = $configPath; Backup = $null; Changed = $false }
     }
+    Assert-HarmonyHookConfig -CodexHome $CodexHome
     $config = Read-CodexHooksConfig -Path $configPath
     if ($null -eq $config.hooks.PSObject.Properties['Stop']) {
         return [pscustomobject]@{ Path = $configPath; Backup = $null; Changed = $false }
