@@ -51,6 +51,27 @@ function Get-HarmonyShortSummary {
     return $clean
 }
 
+function Get-HarmonyTaskTitle {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return 'Codex 任务' }
+
+    # Stop 事件没有原始提问；从最终答复中选择第一条有实际内容的短句。
+    $withoutCode = [regex]::Replace($Text, '(?s)```.*?(?:```|\z)', '')
+    foreach ($line in [regex]::Split($withoutCode, '\r?\n')) {
+        $candidate = [regex]::Replace($line.Trim(), '^(?:#{1,6}\s*|[-*+]\s+|\d+[.)、]\s*)', '').Trim(' ', '*', '`', ':', '：')
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        if ($candidate -match '^(?i:(?:summary|done|completed))\s*[:：.]?$') { continue }
+        if ($candidate -match '^(?:已完成(?:以下)?(?:改动|修改|任务)?|任务已完成|总结|结果|修改内容|本次修改|主要改动|完成|处理结果)[：:。！!\s]*$') { continue }
+
+        $safe = Get-HarmonyShortSummary -Text $candidate -MaxLength 50
+        $title = ([regex]::Split($safe, '[。！？!?；;]')[0]).Trim(' ', ':', '：')
+        if ([string]::IsNullOrWhiteSpace($title) -or $title -match '^\[(?:代码|链接|路径)已省略\]$') { continue }
+        return 'Codex：' + $title
+    }
+    return 'Codex 任务'
+}
+
 function Write-HarmonyStatus {
     param([bool]$Success, [string]$Reason)
 

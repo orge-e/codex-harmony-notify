@@ -28,7 +28,9 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Install.ps1
 | 模式 | 通知范围 | 发送内容 | 配置位置 |
 | --- | --- | --- | --- |
 | 安全联动（输入 `1` 或直接回车） | 你指定的一个 Git 项目 | 授权码、通用任务标题、完成状态和随机消息 ID；不发送回答摘要或 Codex 回合标识 | 该项目的 `.codex/hooks.json` |
-| 傻瓜式联动（输入 `2`） | 同一 `CODEX_HOME` 下所有本机 Codex 对话 | 授权码、完成状态、最多 500 字摘要和 Codex 回合标识 | 用户级 `hooks.json` |
+| 傻瓜式联动（输入 `2`） | 同一 `CODEX_HOME` 下所有本机 Codex 对话 | 授权码、完成状态、根据答复生成的任务标题、最多 500 字摘要和 Codex 回合标识 | 用户级 `hooks.json` |
+
+傻瓜式联动会从 Codex 的最终答复中提取一条简短、有内容的句子作为通知标题，例如“Codex：修复导出失败问题”；安全联动仍使用通用标题。Codex 的 `Stop` 事件不包含原始提问，因此标题依据最终答复生成；答复没有可用文字时回退为“Codex 任务”。提取标题不额外调用模型。
 
 安全联动需要输入一个 Git 项目路径，并在该项目中运行 Codex。可用 `-ProjectPath 'C:\Work\my-project'` 预填路径。**不要把生成的项目 `.codex/hooks.json` 提交到 GitHub**，其中包含本机脚本的绝对路径。安装器会拒绝修改已被 Git 跟踪的同名文件。切换模式前先按下文卸载原模式，避免重复通知。
 
