@@ -33,13 +33,15 @@ try {
     if ($StatusOnly) {
         # 安全联动不处理答复正文，也不把 Codex 回合标识发给云端。
         $summary = 'Codex 已完成本次任务。'
+        $taskName = 'Codex 任务'
         $taskId = ''
     } else {
         $summary = Get-HarmonyShortSummary -Text ([string]$event.last_assistant_message)
+        $taskName = Get-HarmonyTaskTitle -Text ([string]$event.last_assistant_message)
         $taskId = [string]$event.turn_id
     }
     $stage = 'send'
-    $result = Send-HarmonyNotification -TaskName 'Codex 任务' -Status '任务已完成' -Summary $summary -TaskId $taskId
+    $result = Send-HarmonyNotification -TaskName $taskName -Status '任务已完成' -Summary $summary -TaskId $taskId
     # 网络故障不应阻断 Codex 的答复。
     $null = $result
 }

@@ -55,7 +55,21 @@ try {
         $failedSafely = $true
     }
     if (-not $failedSafely -or [System.IO.File]::ReadAllText($invalidPath) -ne '{invalid json') { throw '无效 JSON 应保持原样并停止。' }
-    Write-Output '安装器离线验证通过：项目范围与仅状态模式、全局合并与备份、重复安装、无 BOM、仅卸载本项目 Hook、无效 JSON 保护。'
+
+    $failedEarly = $false
+    try { Assert-HarmonyHookConfig -CodexHome $invalidHome } catch { $failedEarly = $true }
+    if (-not $failedEarly) { throw '无效配置应在读取授权码前被发现。' }
+
+    $secretPath = Join-Path $testHome 'auth.dpapi'
+    [System.IO.File]::WriteAllText($secretPath, 'new-code')
+    Restore-HarmonyAuthFile -Path $secretPath -PreviousBytes $null
+    if (Test-Path -LiteralPath $secretPath) { throw '首次安装失败后不应留下新授权码。' }
+    $oldBytes = [System.Text.Encoding]::UTF8.GetBytes('old-code')
+    [System.IO.File]::WriteAllText($secretPath, 'new-code')
+    Restore-HarmonyAuthFile -Path $secretPath -PreviousBytes $oldBytes
+    if ([System.IO.File]::ReadAllText($secretPath) -ne 'old-code') { throw '重装失败后未恢复原加密文件。' }
+
+    Write-Output '安装器离线验证通过：项目范围、Hook 合并与备份、重复安装、无 BOM、提前识别无效配置、失败回滚授权码。'
 } finally {
     if (([System.IO.Path]::GetFullPath($testHome).StartsWith(([System.IO.Path]::GetFullPath($PSScriptRoot) + '\'), [System.StringComparison]::OrdinalIgnoreCase)) -and (Test-Path -LiteralPath $testHome)) {
         Remove-Item -LiteralPath $testHome -Recurse -Force

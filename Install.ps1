@@ -17,9 +17,9 @@ if ($null -eq (Get-Command codex -ErrorAction SilentlyContinue)) {
 
 Write-Host 'Codex → 鸿蒙负一屏通知安装'
 Write-Host "脚本目录：$PSScriptRoot"
-Write-Host '1. 安全联动（默认）：仅指定的一个 Git 项目；发送授权码及通用完成状态，不发送答复摘要或 Codex 回合标识。'
-Write-Host '2. 傻瓜式联动：同一 CODEX_HOME 下所有本机 Codex 对话；发送授权码、完成状态和最多 120 字摘要。'
-$choice = Read-Host '请选择模式，直接回车使用安全联动 [1/2]'
+Write-Host '1. 安全联动（默认）：指定的一个 Git 项目，只发送通用完成状态。'
+Write-Host '2. 傻瓜式联动：本机所有 Codex 对话，发送完成状态和最多 500 字摘要。'
+$choice = Read-Host '选择模式 [1/2，直接回车选 1]'
 if ([string]::IsNullOrWhiteSpace($choice)) { $choice = '1' }
 switch ($choice) {
     '1' {
@@ -27,7 +27,7 @@ switch ($choice) {
             throw '安全联动需要 Git 来确认目标项目根目录。'
         }
         $projectInput = if ([string]::IsNullOrWhiteSpace($ProjectPath)) {
-            Read-Host '请输入需要启用通知的 Git 项目目录绝对路径'
+            Read-Host '请输入需要通知的 Git 项目路径'
         } else {
             $ProjectPath
         }
@@ -45,7 +45,7 @@ switch ($choice) {
         $modeName = '安全联动'
         $statusOnly = $true
         Write-Host "只在此项目加载 Hook：$(Split-Path -Parent $configHome)"
-        Write-Host '请勿把项目内生成的 .codex/hooks.json 提交到 GitHub。'
+        Write-Host '项目 Hook 中包含本机脚本路径，请勿将它提交到 GitHub。'
     }
     '2' {
         $configHome = $codexHome
@@ -56,45 +56,25 @@ switch ($choice) {
     default { throw '请选择 1 或 2；未修改任何配置。' }
 }
 
-Write-Host '发送目标：https://hiboard-claw-drcn.ai.dbankcloud.cn'
-Write-Host "已选择：$modeName。测试通知会发送不含私人内容的固定文本。"
-if (-not $statusOnly) { Write-Host '摘要过滤无法保证识别全部私人内容。' }
-Write-Host '安装器不会替你信任 Hook。'
+Assert-HarmonyHookConfig -CodexHome $configHome
+$null = Get-HarmonyHookCommand -ScriptPath $hookScript -StatusOnly:$statusOnly
+Write-Host "已选择：$modeName。安装器将向 https://hiboard-claw-drcn.ai.dbankcloud.cn 发送授权码和一条固定测试消息；服务接受后自动配置 Hook。"
+if (-not $statusOnly) { Write-Host '后续每次通知还会发送最多 500 字摘要；过滤无法保证识别全部私人内容。' }
+Write-Host '请在下一步由本人输入授权码；输入即同意发送测试消息。安装器不会替你信任 Hook。'
 
-$proceed = Read-Host '确认继续并发送一条测试通知？输入 Y 继续'
-if ($proceed -notmatch '^(?i:y|yes)$') {
-    Write-Host '已取消，未读取授权码，也未修改 Codex Hook。'
-    exit 0
-}
-
-# 先展示不含授权码的消息，再让用户本人在当前终端遮蔽输入。
-& (Join-Path $PSScriptRoot 'Send-Task.ps1') -DataFile (Join-Path $PSScriptRoot 'sample-task.json') -DryRun
 $previousAuthBytes = if (Test-Path -LiteralPath $script:HarmonySecretPath -PathType Leaf) {
-    # 重装测试失败时恢复原有加密文件，不解密旧授权码。
+    # 重装失败时恢复原有加密文件，不解密旧授权码。
     [System.IO.File]::ReadAllBytes($script:HarmonySecretPath)
 } else { $null }
-& (Join-Path $PSScriptRoot 'Set-Auth.ps1')
-
 try {
+    & (Join-Path $PSScriptRoot 'Set-Auth.ps1')
     & (Join-Path $PSScriptRoot 'Send-Task.ps1') -DataFile (Join-Path $PSScriptRoot 'sample-task.json')
+    $result = Set-HarmonyCodexHook -CodexHome $configHome -ScriptPath $hookScript -StatusOnly:$statusOnly
 } catch {
-    if ($null -ne $previousAuthBytes) {
-        [System.IO.File]::WriteAllBytes($script:HarmonySecretPath, $previousAuthBytes)
-    }
-    throw '测试推送未通过。Codex Hook 未修改；若此前已有授权码，旧加密文件已恢复。请检查手机关联和网络后重试。'
+    Restore-HarmonyAuthFile -Path $script:HarmonySecretPath -PreviousBytes $previousAuthBytes
+    throw
 }
 
-$received = Read-Host '请检查手机负一屏。已收到测试卡片？输入 Y 继续配置自动通知'
-if ($received -notmatch '^(?i:y|yes)$') {
-    if ($null -ne $previousAuthBytes) {
-        [System.IO.File]::WriteAllBytes($script:HarmonySecretPath, $previousAuthBytes)
-    }
-    Write-Host '手机收件未确认，Codex Hook 未修改。可检查关联状态后重新运行安装器。'
-    exit 0
-}
-$previousAuthBytes = $null
-
-$result = Set-HarmonyCodexHook -CodexHome $configHome -ScriptPath $hookScript -StatusOnly:$statusOnly
 if ($result.Changed) {
     Write-Host "已配置 Codex Hook：$($result.Path)"
     if ($result.Backup) { Write-Host "原配置备份：$($result.Backup)" }
@@ -102,6 +82,7 @@ if ($result.Changed) {
     Write-Host 'Codex Hook 已存在且指向当前脚本，无需重复写入。'
 }
 
+Write-Host '电脑端已配置。请先在手机负一屏确认收到测试卡片；若未收到，不要信任 Hook，并检查关联状态。'
 if ($statusOnly) {
     Write-Host '请在所选 Git 项目中启动 Codex；先信任项目配置，再输入 /hooks 检查并信任此 Stop Hook。'
 } else {
