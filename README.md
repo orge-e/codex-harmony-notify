@@ -87,6 +87,8 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Uninstall.ps1 -P
 
 授权码只保存为当前 Windows 用户可解密的 `%LOCALAPPDATA%\CodexHarmonyNotify\auth.dpapi`。仓库不包含授权码，安装器也不会在日志中输出它。Codex Hook 在沙箱外执行，因此请在 `/hooks` 中审阅命令后再信任。
 
+此外，运行时会从卡片标题和正文中精确遮蔽本机已保存的授权码，即使答复未写“授权码”标签；该码仍需作为请求凭据发给华为服务。
+
 ## 常见问题
 
 | 现象 | 检查方法 |

@@ -103,6 +103,12 @@ function Send-HarmonyNotification {
     }
 
     $authCode = Get-HarmonyAuthCode
+    # 授权码已经需要用于发送；若它也出现在答复中，不让卡片正文重复展示。
+    if (-not [string]::IsNullOrEmpty($authCode)) {
+        foreach ($field in @('scheduleTaskName', 'summary', 'content')) {
+            $message[$field] = ([string]$message[$field]).Replace($authCode, '[授权码已遮蔽]')
+        }
+    }
     $body = @{ data = @{ authCode = $authCode; msgContent = @($message) } } | ConvertTo-Json -Depth 6 -Compress
     $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
     $authCode = $null

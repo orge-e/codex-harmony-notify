@@ -74,6 +74,14 @@ function Invoke-RestMethod {
     if ($privateSummary -match 'cAFWifQQgUCz|abc@example.com|13800138000') { throw '敏感值仍出现在请求正文中。' }
     if ($privateSummary -notmatch '敏感值已遮蔽|邮箱已遮蔽|手机号已遮蔽') { throw '缺少局部遮蔽提示。' }
 
+    # 用户可能只贴出授权码，没有写“授权码”标签；卡片正文也必须遮蔽已保存的同一值。
+    $eventJson = '{"last_assistant_message":"done FAKE-TEST-CODE ready","turn_id":"turn-for-test"}'
+    $eventJson | & $powershellFile -NoProfile -ExecutionPolicy RemoteSigned -File $wrapperPath | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw '授权码精确遮蔽测试请求失败。' }
+    $exactPayload = [System.IO.File]::ReadAllText($payloadPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+    $exactSummary = [string]$exactPayload.data.msgContent[0].content
+    if ($exactSummary -match 'FAKE-TEST-CODE' -or $exactSummary -notmatch '授权码已遮蔽') { throw '无标签授权码出现在卡片正文中。' }
+
     $eventJson = ConvertTo-HarmonyAsciiJson -Value @{ last_assistant_message = ('完成' * 300); turn_id = 'turn-for-test' }
     $eventJson | & $powershellFile -NoProfile -ExecutionPolicy RemoteSigned -File $wrapperPath | Out-Null
     if ($LASTEXITCODE -ne 0) { throw '长摘要的测试请求失败。' }
