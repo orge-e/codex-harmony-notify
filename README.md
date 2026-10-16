@@ -28,7 +28,7 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Install.ps1
 | 模式 | 通知范围 | 发送内容 | 配置位置 |
 | --- | --- | --- | --- |
 | 安全联动（输入 `1` 或直接回车） | 你指定的一个 Git 项目 | 授权码、通用任务标题、完成状态和随机消息 ID；不发送回答摘要或 Codex 回合标识 | 该项目的 `.codex/hooks.json` |
-| 傻瓜式联动（输入 `2`） | 同一 `CODEX_HOME` 下所有本机 Codex 对话 | 授权码、完成状态、最多 120 字摘要和 Codex 回合标识 | 用户级 `hooks.json` |
+| 傻瓜式联动（输入 `2`） | 同一 `CODEX_HOME` 下所有本机 Codex 对话 | 授权码、完成状态、最多 500 字摘要和 Codex 回合标识 | 用户级 `hooks.json` |
 
 安全联动需要输入一个 Git 项目路径，并在该项目中运行 Codex。可用 `-ProjectPath 'C:\Work\my-project'` 预填路径。**不要把生成的项目 `.codex/hooks.json` 提交到 GitHub**，其中包含本机脚本的绝对路径。安装器会拒绝修改已被 Git 跟踪的同名文件。切换模式前先按下文卸载原模式，避免重复通知。
 
@@ -81,7 +81,7 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Uninstall.ps1 -P
 
 ## 数据与安全边界
 
-每条通知会通过 HTTPS 发送到 `hiboard-claw-drcn.ai.dbankcloud.cn`，并包含手机授权码。安全联动只在你指定的 Git 项目中启用，只发送通用完成状态、通用任务标题及随机消息 ID；Hook 虽会接收 Codex 的事件输入，但脚本不读取其中的答复正文。傻瓜式联动的全局 Hook 会覆盖同一 `CODEX_HOME` 下的本机 Codex 对话，包括普通对话，并额外发送最多 120 字摘要和 Codex 回合标识。两种模式都不读取整段会话记录或附件。摘要过滤无法保证识别全部敏感内容；处理私人内容前请暂停傻瓜式联动。
+每条通知会通过 HTTPS 发送到 `hiboard-claw-drcn.ai.dbankcloud.cn`，并包含手机授权码。安全联动只在你指定的 Git 项目中启用，只发送通用完成状态、通用任务标题及随机消息 ID；Hook 虽会接收 Codex 的事件输入，但脚本不读取其中的答复正文。傻瓜式联动的全局 Hook 会覆盖同一 `CODEX_HOME` 下的本机 Codex 对话，包括普通对话，并额外发送最多 500 字摘要和 Codex 回合标识。脚本会局部遮蔽常见授权码、邮箱、手机号、证件号、链接、路径和代码块，尽量保留其余摘要。两种模式都不读取整段会话记录或附件。摘要过滤无法保证识别全部敏感内容；处理私人内容前请暂停傻瓜式联动。500 字是本项目的发送上限，华为卡片实际能显示多少需以手机测试为准。
 
 华为当前的 Claw 消息通道要求消息来源字段为 `OpenClaw`，所以卡片会显示该来源，但任务名称标示由 Codex 完成。这个适配方式兼容现有社区实现，**不是华为官方发布的 Codex 集成**。当前自动 Hook 仅发送“任务已完成”；开始、进行中、失败等状态尚未实现或验证。手机“Claw”卡片按钮能否跳转，取决于华为后续支持。
 
@@ -95,6 +95,7 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Uninstall.ps1 -P
 | PowerShell 拒绝运行脚本 | 先确认代码来源和内容；若下载文件带有网络阻止标记，可在审阅后对本项目的脚本使用 `Unblock-File`。安装命令的 `RemoteSigned` 只作用于该 PowerShell 进程，不修改全局执行策略。 |
 | 测试请求失败 | 检查手机关联与授权码是否仍有效、电脑网络或本机代理；重新运行安装器输入新的授权码。不要把授权码贴进 Issue 或聊天。 |
 | 服务接受了请求，但手机没有卡片 | 回到手机负一屏检查关联、账号与卡片；在安装器中回答未收到，Hook 就不会启用。 |
+| 摘要在手机卡片上被截短或未通过内容审核 | 本项目最多发送 500 字，手机展示上限和华为服务审核规则由华为决定；可改用安全联动，只发送通用状态。不要拆分消息或改写内容来规避审核。 |
 | 手动测试成功，但 Codex 不自动通知 | 重启 Codex CLI，使用 `/hooks` 检查 Hook 是否启用并受信任、未创建 `paused.flag`。安全模式还要确认 Codex 正从指定项目启动且项目配置受信任；便捷模式要确认 `CODEX_HOME` 与安装时一致。 |
 | 修改或重装后要求重新信任 | Codex 会按 Hook 定义的内容记录信任；命令变化后需再次审阅并信任。 |
 

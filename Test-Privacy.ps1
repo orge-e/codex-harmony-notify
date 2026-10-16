@@ -1,5 +1,15 @@
 ﻿$ErrorActionPreference = 'Stop'
 
+# 用 ASCII 形式的 Unicode 转义传给 Windows PowerShell 5.1，避免测试管道改变中文编码。
+function ConvertTo-HarmonyAsciiJson {
+    param($Value)
+    $json = ConvertTo-Json -InputObject $Value -Compress
+    return [regex]::Replace($json, '[^\x00-\x7F]', [System.Text.RegularExpressions.MatchEvaluator]{
+        param($match)
+        return '\u{0:x4}' -f [int][char]$match.Value[0]
+    })
+}
+
 # 用假的授权码和本地请求替身，验证两种模式实际发出的字段；不访问华为服务。
 $projectRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
 $testHome = Join-Path $projectRoot ('.codex-harmony-test-' + [guid]::NewGuid().ToString('N'))
@@ -22,6 +32,7 @@ try {
     $wrapper = @'
 param([switch]$StatusOnly)
 $ErrorActionPreference = 'Stop'
+
 function Invoke-RestMethod {
     param($Uri, $Method, $Headers, [byte[]]$Body, $ContentType, $TimeoutSec, $ErrorAction)
     [System.IO.File]::WriteAllBytes($env:CODEX_HARMONY_TEST_PAYLOAD, $Body)
@@ -52,7 +63,25 @@ function Invoke-RestMethod {
     $easyMessage = $easy.data.msgContent[0]
     if ($easyMessage.content -ne 'done ok' -or $easyMessage.msgId -notmatch 'turn-for-test') { throw '傻瓜式联动字段不符合预期。' }
 
-    Write-Output '离线隐私验证通过：安全联动仅发送通用状态和随机 ID，傻瓜式联动发送简短摘要。'
+    # 长摘要应保留有用文字，同时只遮蔽敏感值。
+    $privateText = '已完成修复，token 消耗已降低。授权码: cAFWifQQgUCz。邮箱 abc@example.com，手机 13800138000。'
+    $eventJson = ConvertTo-HarmonyAsciiJson -Value @{ last_assistant_message = $privateText; turn_id = 'turn-for-test' }
+    $eventJson | & $powershellFile -NoProfile -ExecutionPolicy RemoteSigned -File $wrapperPath | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw '含敏感值的测试请求失败。' }
+    $privatePayload = [System.IO.File]::ReadAllText($payloadPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+    $privateSummary = [string]$privatePayload.data.msgContent[0].content
+    if ($privateSummary -notmatch 'token 消耗已降低' -or $privateSummary -notmatch '已完成修复') { throw '普通摘要被整段隐藏。' }
+    if ($privateSummary -match 'cAFWifQQgUCz|abc@example.com|13800138000') { throw '敏感值仍出现在请求正文中。' }
+    if ($privateSummary -notmatch '敏感值已遮蔽|邮箱已遮蔽|手机号已遮蔽') { throw '缺少局部遮蔽提示。' }
+
+    $eventJson = ConvertTo-HarmonyAsciiJson -Value @{ last_assistant_message = ('完成' * 300); turn_id = 'turn-for-test' }
+    $eventJson | & $powershellFile -NoProfile -ExecutionPolicy RemoteSigned -File $wrapperPath | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw '长摘要的测试请求失败。' }
+    $longPayload = [System.IO.File]::ReadAllText($payloadPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+    $longSummary = [string]$longPayload.data.msgContent[0].content
+    if ($longSummary.Length -ne 500 -or -not $longSummary.EndsWith('…')) { throw '摘要没有按 500 字上限截断。' }
+
+    Write-Output '离线隐私验证通过：安全联动只发通用状态；傻瓜式联动局部遮蔽敏感值，摘要最多 500 字。'
 } finally {
     $env:USERPROFILE = $oldProfile
     $env:CODEX_HARMONY_TEST_PAYLOAD = $oldPayload

@@ -18,7 +18,7 @@ if ($null -eq (Get-Command codex -ErrorAction SilentlyContinue)) {
 Write-Host 'Codex → 鸿蒙负一屏通知安装'
 Write-Host "脚本目录：$PSScriptRoot"
 Write-Host '1. 安全联动（默认）：指定的一个 Git 项目，只发送通用完成状态。'
-Write-Host '2. 傻瓜式联动：本机所有 Codex 对话，发送完成状态和最多 120 字摘要。'
+Write-Host '2. 傻瓜式联动：本机所有 Codex 对话，发送完成状态和最多 500 字摘要。'
 $choice = Read-Host '选择模式 [1/2，直接回车选 1]'
 if ([string]::IsNullOrWhiteSpace($choice)) { $choice = '1' }
 switch ($choice) {
@@ -59,7 +59,7 @@ switch ($choice) {
 Assert-HarmonyHookConfig -CodexHome $configHome
 $null = Get-HarmonyHookCommand -ScriptPath $hookScript -StatusOnly:$statusOnly
 Write-Host "已选择：$modeName。安装器将向 https://hiboard-claw-drcn.ai.dbankcloud.cn 发送授权码和一条固定测试消息；服务接受后自动配置 Hook。"
-if (-not $statusOnly) { Write-Host '后续每次通知还会发送最多 120 字摘要；过滤无法保证识别全部私人内容。' }
+if (-not $statusOnly) { Write-Host '后续每次通知还会发送最多 500 字摘要；过滤无法保证识别全部私人内容。' }
 Write-Host '请在下一步由本人输入授权码；输入即同意发送测试消息。安装器不会替你信任 Hook。'
 
 $previousAuthBytes = if (Test-Path -LiteralPath $script:HarmonySecretPath -PathType Leaf) {
